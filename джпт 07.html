@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лови Лам!</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #00aaff, #ffcc00);
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        #score {
+            font-size: 24px;
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        #timer {
+            font-size: 24px;
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
+            color: #ffdd00;
+            font-weight: bold;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+        }
+        #gameArea {
+            position: relative;
+            width: 100vw;
+            max-height: 500px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            margin-top: 80px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .llama {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: #ffcc00;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 50px;
+            font-size: 28px;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+            animation: appear 0.3s ease-out;
+        }
+        @keyframes appear {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        #score.pulse {
+            animation: pulse 0.3s ease;
+        }
+        #startButton, #retryButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 20px;
+            display: none;
+            background-color: #ffcc00;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Очки: 0 $LLAMA</div>
+    <div id="timer">Осталось: 30 сек.</div>
+    <div id="gameArea"></div>
+    <button id="startButton">Начать</button>
+    <button id="retryButton">Играть снова</button>
+
+    <script>
+        const gameCooldown = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+        const lastPlayTime = localStorage.getItem('lastPlayTime');
+        const now = Date.now();
+
+        const startButton = document.getElementById('startButton');
+        const retryButton = document.getElementById('retryButton');
+        const gameArea = document.getElementById('gameArea');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let fallSpeed = 3;
+        let timerInterval, llamaInterval;
+
+        // Проверка, прошло ли 24 часа с момента последней игры
+        if (lastPlayTime && now - lastPlayTime < gameCooldown) {
+            const hoursLeft = Math.ceil((gameCooldown - (now - lastPlayTime)) / (60 * 60 * 1000));
+            document.body.innerHTML += `<h1 style="color: #fff; text-align: center; padding-top: 40vh;">Подождите ${hoursLeft} часов, чтобы сыграть снова.</h1>`;
+        } else {
+            startButton.style.display = 'block';
+            startButton.addEventListener('click', startGame);
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            fallSpeed = 3;
+            scoreDisplay.textContent = `Очки: ${score} $LLAMA`;
+            timerDisplay.textContent = `Осталось: ${timeLeft} сек.`;
+            startButton.style.display = 'none';
+            retryButton.style.display = 'none';
+            localStorage.setItem('lastPlayTime', Date.now());
+
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    timerDisplay.textContent = `Осталось: ${timeLeft} сек.`;
+                } else {
+                    endGame();
+                }
+            }, 1000);
+
+            llamaInterval = setInterval(() => {
+                if (gameActive) createLlama();
+            }, 700);
+        }
+
+        function createLlama() {
+            const llama = document.createElement('div');
+            llama.classList.add('llama');
+            llama.style.left = Math.random() * (window.innerWidth - 50) + 'px';
+            llama.style.top = '10px';
+            llama.textContent = '🦙';
+
+            llama.addEventListener('pointerdown', () => {
+                if (gameActive) {
+                    score++;
+                    scoreDisplay.textContent = `Очки: ${score} $LLAMA`;
+                    scoreDisplay.classList.add('pulse');
+                    setTimeout(() => scoreDisplay.classList.remove('pulse'), 300);
+                    llama.remove();
+
+                    if (score % 5 === 0) { // Увеличиваем скорость каждые 5 очков
+                        fallSpeed++;
+                    }
+                }
+            });
+
+            gameArea.appendChild(llama);
+
+            let fallInterval = setInterval(() => {
+                if (!gameActive) {
+                    clearInterval(fallInterval);
+                    return;
+                }
+                llama.style.top = `${llama.offsetTop + fallSpeed}px`;
+
+                if (llama.offsetTop > window.innerHeight) {
+                    llama.remove();
+                    clearInterval(fallInterval);
+                }
+            }, 30);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            clearInterval(llamaInterval);
+            alert(`Игра окончена! Вы поймали ${score} $LLAMA!`);
+            retryButton.style.display = 'block';
+        }
+
+        retryButton.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
